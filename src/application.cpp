@@ -4,6 +4,8 @@
 // Always include window first (because it includes glfw, which includes GL which needs to be included AFTER glew).
 // Can't wait for modules to fix this stuff...
 #include <framework/disable_all_warnings.h>
+
+#include "ui/menu.h"
 DISABLE_WARNINGS_PUSH()
 #include <glad/glad.h>
 // Include glad before glfw3
@@ -20,6 +22,7 @@ DISABLE_WARNINGS_POP()
 #include <functional>
 #include <iostream>
 #include <vector>
+#include <utils/config.h>
 
 class Application {
 public:
@@ -27,6 +30,10 @@ public:
         : m_window("Final Project", glm::ivec2(1024, 1024), OpenGLVersion::GL41)
         , m_texture(RESOURCE_ROOT "resources/checkerboard.png")
     {
+        // --- Setup config ---
+        m_config = Config();
+
+        // --- Hook input events ---
         m_window.registerKeyCallback([this](int key, int scancode, int action, int mods) {
             if (action == GLFW_PRESS)
                 onKeyPressed(key, mods);
@@ -41,8 +48,10 @@ public:
                 onMouseReleased(button, mods);
         });
 
+        // --- Load mesh ---
         m_meshes = GPUMesh::loadMeshGPU(RESOURCE_ROOT "resources/dragon.obj");
 
+        // --- Build shaders ---
         try {
             ShaderBuilder defaultBuilder;
             defaultBuilder.addStage(GL_VERTEX_SHADER, RESOURCE_ROOT "shaders/shader_vert.glsl");
@@ -67,17 +76,14 @@ public:
     void update()
     {
         int dummyInteger = 0; // Initialized to 0
+        Menu menu(m_config);
+
         while (!m_window.shouldClose()) {
             // This is your game loop
             // Put your real-time logic and rendering in here
             m_window.updateInput();
 
-            // Use ImGui for easy input/output of ints, floats, strings, etc...
-            ImGui::Begin("Window");
-            ImGui::InputInt("This is an integer input", &dummyInteger); // Use ImGui::DragInt or ImGui::DragFloat for larger range of numbers.
-            ImGui::Text("Value is: %i", dummyInteger); // Use C printf formatting rules (%i is a signed integer)
-            ImGui::Checkbox("Use material if no texture", &m_useMaterial);
-            ImGui::End();
+            menu.draw();
 
             // Clear the screen
             glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
@@ -104,7 +110,7 @@ public:
                     glUniform1i(m_defaultShader.getUniformLocation("useMaterial"), GL_FALSE);
                 } else {
                     glUniform1i(m_defaultShader.getUniformLocation("hasTexCoords"), GL_FALSE);
-                    glUniform1i(m_defaultShader.getUniformLocation("useMaterial"), m_useMaterial);
+                    glUniform1i(m_defaultShader.getUniformLocation("useMaterial"), m_config.useMaterial);
                 }
                 mesh.draw(m_defaultShader);
             }
@@ -161,7 +167,8 @@ private:
 
     std::vector<GPUMesh> m_meshes;
     Texture m_texture;
-    bool m_useMaterial { true };
+
+    Config m_config;
 
     // Projection and view matrices for you to fill in and use
     glm::mat4 m_projectionMatrix = glm::perspective(glm::radians(80.0f), 1.0f, 0.1f, 30.0f);
