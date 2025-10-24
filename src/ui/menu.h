@@ -15,4 +15,5 @@ private:
     Config& m_config;
     // --- Menu Sections ---
     void drawMaterialControls();
+    void drawLightControls();
 };

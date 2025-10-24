@@ -71,11 +71,26 @@ public:
         } catch (ShaderLoadingException e) {
             std::cerr << e.what() << std::endl;
         }
+
+        // --- Init lights ---
+        glGenBuffers(1, &m_lightUbo);
+        m_config.lights = std::vector<Light>();
+        m_config.lights.push_back(Light{glm::vec4(1), glm::vec4(0,3,0,0), glm::vec4(0,-1,0,0), 1});
+    }
+
+    void uploadLights()
+    {
+        auto lights = m_config.lights;
+        glBindBuffer(GL_UNIFORM_BUFFER, m_lightUbo);
+        int size = static_cast<int>(lights.size());
+        glBufferData(GL_UNIFORM_BUFFER, 16 + sizeof(Light) * size, NULL, GL_DYNAMIC_DRAW);
+        glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(int), &size);
+        glBufferSubData(GL_UNIFORM_BUFFER, 16, sizeof(Light) * size, lights.data());
+        glBindBuffer(GL_UNIFORM_BUFFER, 0);
     }
 
     void update()
     {
-        int dummyInteger = 0; // Initialized to 0
         Menu menu(m_config);
 
         while (!m_window.shouldClose()) {
@@ -84,6 +99,8 @@ public:
             m_window.updateInput();
 
             menu.draw();
+
+            uploadLights();
 
             // Clear the screen
             glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
@@ -103,6 +120,10 @@ public:
                 //Uncomment this line when you use the modelMatrix (or fragmentPosition)
                 //glUniformMatrix4fv(m_defaultShader.getUniformLocation("modelMatrix"), 1, GL_FALSE, glm::value_ptr(m_modelMatrix));
                 glUniformMatrix3fv(m_defaultShader.getUniformLocation("normalModelMatrix"), 1, GL_FALSE, glm::value_ptr(normalModelMatrix));
+
+                m_defaultShader.bindUniformBlock("lightBuffer", 1, m_lightUbo);
+                glUniform3fv(m_defaultShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(glm::vec3(-1, 1, -1)));
+
                 if (mesh.hasTextureCoords()) {
                     m_texture.bind(GL_TEXTURE0);
                     glUniform1i(m_defaultShader.getUniformLocation("colorMap"), 0);
@@ -167,6 +188,7 @@ private:
 
     std::vector<GPUMesh> m_meshes;
     Texture m_texture;
+    GLuint m_lightUbo;
 
     Config m_config;
 
